@@ -5,125 +5,288 @@ Created on Mon Oct 16 09:29:43 2017
 @author: dfornaro
 """
 
-from hashlib import sha256
-import pbkdf2
+from hashlib import sha256, sha512
+from pbkdf2 import PBKDF2
 import hmac
-import hashlib
-from hmac import HMAC
 
 
-#b=os.urandom(10000)
-#for i in range(0,12):
-#    print(b[i])
-#
-#print(max(b))
-#print(min(b))
-#
-#s=[0]*256
-#for i in range(0,255):
-#    s[i]=random.randint(0, 1)
-    
-#### suppose to have a Entropy input of 128 bits
-
-
-def from_entropy_to_mnemonic(entropy, ENT):  
+def from_entropy_to_mnemonic_int(entropy, ENT):  
   entropy_bytes = entropy.to_bytes(int(ENT/8), byteorder='big')
   checksum = sha256(entropy_bytes).digest()
   checksum_int = int.from_bytes(checksum, byteorder='big')
   checksum_bin = bin(checksum_int)
   while len(checksum_bin)<258:
     checksum_bin = '0b0' + checksum_bin[2:]
-  print("\n",checksum,"\n",type(checksum),checksum_bin)
   entropy_bin = bin(entropy)
   while len(entropy_bin)<ENT+2:
     entropy_bin = '0b0' + entropy_bin[2:]
-  print("\nentropy bin",entropy_bin)
   entropy_checked = entropy_bin[2:] + checksum_bin[2:2+int(ENT/32)]
-  print(entropy_checked)
   number_mnemonic = (ENT/32 + ENT)/11
   assert number_mnemonic %1 == 0
   number_mnemonic = int(number_mnemonic)
-  mnemonic = [0]*number_mnemonic
+  mnemonic_int = [0]*number_mnemonic
   for i in range(0,number_mnemonic):
-    mnemonic[i] = int(entropy_checked[i*11:(i+1)*11],2)
+    mnemonic_int[i] = int(entropy_checked[i*11:(i+1)*11],2)
+  return mnemonic_int
+
+def from_mnemonic_int_to_mnemonic(mnemonic_int, dictionary_txt):
+  dictionary  = open(dictionary_txt, 'r').readlines()
+  mnemonic = ''
+  for j in mnemonic_int:
+    mnemonic = mnemonic + ' ' +  dictionary[j][:-1]
+  mnemonic = mnemonic[1:]
   return mnemonic
 
-def from_mnemonic_to_seed(mnemonic, passphrase=''):
+def from_mnemonic_to_seed(mnemonic, passphrase='TREZOR'):
   PBKDF2_ROUNDS = 2048
-  return pbkdf2.PBKDF2(mnemonic, 'mnemonic' + passphrase, iterations = PBKDF2_ROUNDS, macmodule = hmac, digestmodule = hashlib.sha512).read(64).hex()
-
-
-entropy=0x0c1e24e5917779d297e14d45f14e1a1a
-entropy = 0x7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f
-
-ENT = 128
-print(from_entropy_to_mnemonic(entropy, ENT))
-
-#
-#entropy='0c1e24e5917779d297e14d45f14e1a1a'
-#checksum=sha256(entropy.encode()).hexdigest()
-#
-#entropy_base10 = [0]*int(len(entropy)/2)
-#for i in range(0,int(len(entropy)/2)):
-#    entropy_base10[i] = int(entropy[i*2:(i+1)*2],16)
-#
-#entropy_bytes = bytes(entropy_base10)
-#
-#checksum2=sha256(entropy_bytes).hexdigest()
-#
-#entropy_checked = entropy + checksum2[0]
-#
-#base2=''
-#
-#for i in range(0,33):
-#  base10_entropy = int(entropy_checked[i],16)
-#  base2_entropy = bin(base10_entropy)
-#    
-#  if len(base2_entropy)==6:
-#    base2 = base2 + base2_entropy[2:6] 
-#  elif len(base2_entropy)==5:
-#    base2 = base2 + '0' + base2_entropy[2:5]
-#  elif len(base2_entropy)==4:
-#    base2 = base2 + '00' + base2_entropy[2:4]
-#  elif len(base2_entropy)==3:
-#    base2 = base2 + '000' + base2_entropy[2]
-#
-
-
-#checksum=sha256(base2.encode()).hexdigest()
-#
-#
-#base10_checksum = int(checksum[0],16)
-#base2_checksum = bin(base10_checksum)
-#
-#if len(base2_checksum)==6:
-#    base2 = base2 + base2_checksum[2:6] 
-#elif len(base2_checksum)==5:
-#    base2 = base2 + '0' + base2_checksum[2:5]
-#elif len(base2_checksum)==4:
-#    base2 = base2 + '00' + base2_checksum[2:4]
-#elif len(base2_checksum)==3:
-#    base2 = base2 + '000' + base2_checksum[2]
-
-
-#
-#word = [0] * 12
-#for i in range(0,12):
-#  word[i] = int(base2[i*11 : (i+1)*11] , 2)
-#
-##print(word)
-##### https://github.com/bitcoin/bips/blob/master/bip-0039/english.txt ####
-#
-## these words corrispond to the follow mnemonic code
-#    
-#mnemonic= 'legal winner thank year wave sausage worth useful legal winner thank year wave sausage worth useful legal will'
-#
-#
-#
-#seed = from_mnemonic_to_seed(mnemonic)
-#print(seed)
-#seed_true = "b059400ce0f55498a5527667e77048bb482ff6daa16c37b4b9e8af70c85b3f4df588004f19812a1a027c9a51e5e94259a560268e91cd10e206451a129826e740"
-#print(seed == seed_true)
+  return PBKDF2(mnemonic, 'mnemonic' + passphrase, iterations = PBKDF2_ROUNDS, macmodule = hmac, digestmodule = sha512).read(64).hex()
 
 
 
+
+def test_vector_1():
+  entropy = 0x0
+  ENT = 128
+  mnemonic_int=from_entropy_to_mnemonic_int(entropy, ENT)
+  mnemonic = from_mnemonic_int_to_mnemonic(mnemonic_int, 'Dictionary.txt')
+  seed = from_mnemonic_to_seed(mnemonic)
+  assert(seed == "c55257c360c07c72029aebc1b53c05ed0362ada38ead3e3e9efa3708e53495531f09a6987599d18264c1e1c92f2cf141630c7a3c4ab7c81b2f001698e7463b04")
+  return
+
+def test_vector_2():
+  entropy = 0x7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f
+  ENT = 128
+  mnemonic_int=from_entropy_to_mnemonic_int(entropy, ENT)
+  mnemonic = from_mnemonic_int_to_mnemonic(mnemonic_int, 'Dictionary.txt')
+  seed = from_mnemonic_to_seed(mnemonic)
+  assert(seed == "2e8905819b8723fe2c1d161860e5ee1830318dbf49a83bd451cfb8440c28bd6fa457fe1296106559a3c80937a1c1069be3a3a5bd381ee6260e8d9739fce1f607")
+  return
+
+def test_vector_3():
+  entropy = 0x80808080808080808080808080808080
+  ENT = 128
+  mnemonic_int=from_entropy_to_mnemonic_int(entropy, ENT)
+  mnemonic = from_mnemonic_int_to_mnemonic(mnemonic_int, 'Dictionary.txt')
+  seed = from_mnemonic_to_seed(mnemonic)
+  assert(seed == "d71de856f81a8acc65e6fc851a38d4d7ec216fd0796d0a6827a3ad6ed5511a30fa280f12eb2e47ed2ac03b5c462a0358d18d69fe4f985ec81778c1b370b652a8")
+  return
+
+def test_vector_4():
+  entropy = 0xffffffffffffffffffffffffffffffff
+  ENT = 128
+  mnemonic_int=from_entropy_to_mnemonic_int(entropy, ENT)
+  mnemonic = from_mnemonic_int_to_mnemonic(mnemonic_int, 'Dictionary.txt')
+  seed = from_mnemonic_to_seed(mnemonic)
+  assert(seed == "ac27495480225222079d7be181583751e86f571027b0497b5b5d11218e0a8a13332572917f0f8e5a589620c6f15b11c61dee327651a14c34e18231052e48c069")
+  return
+
+def test_vector_5():
+  entropy = 0x0
+  ENT = 192
+  mnemonic_int=from_entropy_to_mnemonic_int(entropy, ENT)
+  mnemonic = from_mnemonic_int_to_mnemonic(mnemonic_int, 'Dictionary.txt')
+  seed = from_mnemonic_to_seed(mnemonic)
+  assert(seed == "035895f2f481b1b0f01fcf8c289c794660b289981a78f8106447707fdd9666ca06da5a9a565181599b79f53b844d8a71dd9f439c52a3d7b3e8a79c906ac845fa")
+  return
+
+def test_vector_6():
+  entropy = 0x7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f
+  ENT = 192
+  mnemonic_int=from_entropy_to_mnemonic_int(entropy, ENT)
+  mnemonic = from_mnemonic_int_to_mnemonic(mnemonic_int, 'Dictionary.txt')
+  seed = from_mnemonic_to_seed(mnemonic)
+  assert(seed == "f2b94508732bcbacbcc020faefecfc89feafa6649a5491b8c952cede496c214a0c7b3c392d168748f2d4a612bada0753b52a1c7ac53c1e93abd5c6320b9e95dd")
+  return
+
+def test_vector_7():
+  entropy = 0x808080808080808080808080808080808080808080808080
+  ENT = 192
+  mnemonic_int=from_entropy_to_mnemonic_int(entropy, ENT)
+  mnemonic = from_mnemonic_int_to_mnemonic(mnemonic_int, 'Dictionary.txt')
+  seed = from_mnemonic_to_seed(mnemonic)
+  assert(seed == "107d7c02a5aa6f38c58083ff74f04c607c2d2c0ecc55501dadd72d025b751bc27fe913ffb796f841c49b1d33b610cf0e91d3aa239027f5e99fe4ce9e5088cd65")
+  return
+
+def test_vector_8():
+  entropy = 0xffffffffffffffffffffffffffffffffffffffffffffffff
+  ENT = 192
+  mnemonic_int=from_entropy_to_mnemonic_int(entropy, ENT)
+  mnemonic = from_mnemonic_int_to_mnemonic(mnemonic_int, 'Dictionary.txt')
+  seed = from_mnemonic_to_seed(mnemonic)
+  assert(seed == "0cd6e5d827bb62eb8fc1e262254223817fd068a74b5b449cc2f667c3f1f985a76379b43348d952e2265b4cd129090758b3e3c2c49103b5051aac2eaeb890a528")
+  return
+
+def test_vector_9():
+  entropy = 0x0
+  ENT = 256
+  mnemonic_int=from_entropy_to_mnemonic_int(entropy, ENT)
+  mnemonic = from_mnemonic_int_to_mnemonic(mnemonic_int, 'Dictionary.txt')
+  seed = from_mnemonic_to_seed(mnemonic)
+  assert(seed == "bda85446c68413707090a52022edd26a1c9462295029f2e60cd7c4f2bbd3097170af7a4d73245cafa9c3cca8d561a7c3de6f5d4a10be8ed2a5e608d68f92fcc8")
+  return
+
+def test_vector_10():
+  entropy = 0x7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f
+  ENT = 256
+  mnemonic_int=from_entropy_to_mnemonic_int(entropy, ENT)
+  mnemonic = from_mnemonic_int_to_mnemonic(mnemonic_int, 'Dictionary.txt')
+  seed = from_mnemonic_to_seed(mnemonic)
+  assert(seed == "bc09fca1804f7e69da93c2f2028eb238c227f2e9dda30cd63699232578480a4021b146ad717fbb7e451ce9eb835f43620bf5c514db0f8add49f5d121449d3e87")
+  return
+
+def test_vector_11():
+  entropy = 0x8080808080808080808080808080808080808080808080808080808080808080
+  ENT = 256
+  mnemonic_int=from_entropy_to_mnemonic_int(entropy, ENT)
+  mnemonic = from_mnemonic_int_to_mnemonic(mnemonic_int, 'Dictionary.txt')
+  seed = from_mnemonic_to_seed(mnemonic)
+  assert(seed == "c0c519bd0e91a2ed54357d9d1ebef6f5af218a153624cf4f2da911a0ed8f7a09e2ef61af0aca007096df430022f7a2b6fb91661a9589097069720d015e4e982f")
+  return
+
+def test_vector_12():
+  entropy = 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+  ENT = 256
+  mnemonic_int=from_entropy_to_mnemonic_int(entropy, ENT)
+  mnemonic = from_mnemonic_int_to_mnemonic(mnemonic_int, 'Dictionary.txt')
+  seed = from_mnemonic_to_seed(mnemonic)
+  assert(seed == "dd48c104698c30cfe2b6142103248622fb7bb0ff692eebb00089b32d22484e1613912f0a5b694407be899ffd31ed3992c456cdf60f5d4564b8ba3f05a69890ad")
+  return
+
+def test_vector_13():
+  entropy = 0x9e885d952ad362caeb4efe34a8e91bd2
+  ENT = 128
+  mnemonic_int=from_entropy_to_mnemonic_int(entropy, ENT)
+  mnemonic = from_mnemonic_int_to_mnemonic(mnemonic_int, 'Dictionary.txt')
+  seed = from_mnemonic_to_seed(mnemonic)
+  assert(seed == "274ddc525802f7c828d8ef7ddbcdc5304e87ac3535913611fbbfa986d0c9e5476c91689f9c8a54fd55bd38606aa6a8595ad213d4c9c9f9aca3fb217069a41028")
+  return
+
+def test_vector_14():
+  entropy = 0x6610b25967cdcca9d59875f5cb50b0ea75433311869e930b
+  ENT = 192
+  mnemonic_int=from_entropy_to_mnemonic_int(entropy, ENT)
+  mnemonic = from_mnemonic_int_to_mnemonic(mnemonic_int, 'Dictionary.txt')
+  seed = from_mnemonic_to_seed(mnemonic)
+  assert(seed == "628c3827a8823298ee685db84f55caa34b5cc195a778e52d45f59bcf75aba68e4d7590e101dc414bc1bbd5737666fbbef35d1f1903953b66624f910feef245ac")
+  return
+
+def test_vector_15():
+  entropy = 0x68a79eaca2324873eacc50cb9c6eca8cc68ea5d936f98787c60c7ebc74e6ce7c
+  ENT = 256
+  mnemonic_int=from_entropy_to_mnemonic_int(entropy, ENT)
+  mnemonic = from_mnemonic_int_to_mnemonic(mnemonic_int, 'Dictionary.txt')
+  seed = from_mnemonic_to_seed(mnemonic)
+  assert(seed == "64c87cde7e12ecf6704ab95bb1408bef047c22db4cc7491c4271d170a1b213d20b385bc1588d9c7b38f1b39d415665b8a9030c9ec653d75e65f847d8fc1fc440")
+  return
+
+def test_vector_16():
+  entropy = 0xc0ba5a8e914111210f2bd131f3d5e08d
+  ENT = 128
+  mnemonic_int=from_entropy_to_mnemonic_int(entropy, ENT)
+  mnemonic = from_mnemonic_int_to_mnemonic(mnemonic_int, 'Dictionary.txt')
+  seed = from_mnemonic_to_seed(mnemonic)
+  assert(seed == "ea725895aaae8d4c1cf682c1bfd2d358d52ed9f0f0591131b559e2724bb234fca05aa9c02c57407e04ee9dc3b454aa63fbff483a8b11de949624b9f1831a9612")
+  return
+
+def test_vector_17():
+  entropy = 0x6d9be1ee6ebd27a258115aad99b7317b9c8d28b6d76431c3
+  ENT = 192
+  mnemonic_int=from_entropy_to_mnemonic_int(entropy, ENT)
+  mnemonic = from_mnemonic_int_to_mnemonic(mnemonic_int, 'Dictionary.txt')
+  seed = from_mnemonic_to_seed(mnemonic)
+  assert(seed == "fd579828af3da1d32544ce4db5c73d53fc8acc4ddb1e3b251a31179cdb71e853c56d2fcb11aed39898ce6c34b10b5382772db8796e52837b54468aeb312cfc3d")
+  return
+
+def test_vector_18():
+  entropy = 0x9f6a2878b2520799a44ef18bc7df394e7061a224d2c33cd015b157d746869863
+  ENT = 256
+  mnemonic_int=from_entropy_to_mnemonic_int(entropy, ENT)
+  mnemonic = from_mnemonic_int_to_mnemonic(mnemonic_int, 'Dictionary.txt')
+  seed = from_mnemonic_to_seed(mnemonic)
+  assert(seed == "72be8e052fc4919d2adf28d5306b5474b0069df35b02303de8c1729c9538dbb6fc2d731d5f832193cd9fb6aeecbc469594a70e3dd50811b5067f3b88b28c3e8d")
+  return
+
+def test_vector_19():
+  entropy = 0x23db8160a31d3e0dca3688ed941adbf3
+  ENT = 128
+  mnemonic_int=from_entropy_to_mnemonic_int(entropy, ENT)
+  mnemonic = from_mnemonic_int_to_mnemonic(mnemonic_int, 'Dictionary.txt')
+  seed = from_mnemonic_to_seed(mnemonic)
+  assert(seed == "deb5f45449e615feff5640f2e49f933ff51895de3b4381832b3139941c57b59205a42480c52175b6efcffaa58a2503887c1e8b363a707256bdd2b587b46541f5")
+  return
+
+def test_vector_20():
+  entropy = 0x8197a4a47f0425faeaa69deebc05ca29c0a5b5cc76ceacc0
+  ENT = 192
+  mnemonic_int=from_entropy_to_mnemonic_int(entropy, ENT)
+  mnemonic = from_mnemonic_int_to_mnemonic(mnemonic_int, 'Dictionary.txt')
+  seed = from_mnemonic_to_seed(mnemonic)
+  assert(seed == "4cbdff1ca2db800fd61cae72a57475fdc6bab03e441fd63f96dabd1f183ef5b782925f00105f318309a7e9c3ea6967c7801e46c8a58082674c860a37b93eda02")
+  return
+
+def test_vector_21():
+  entropy = 0x066dca1a2bb7e8a1db2832148ce9933eea0f3ac9548d793112d9a95c9407efad
+  ENT = 256
+  mnemonic_int=from_entropy_to_mnemonic_int(entropy, ENT)
+  mnemonic = from_mnemonic_int_to_mnemonic(mnemonic_int, 'Dictionary.txt')
+  seed = from_mnemonic_to_seed(mnemonic)
+  assert(seed == "26e975ec644423f4a4c4f4215ef09b4bd7ef924e85d1d17c4cf3f136c2863cf6df0a475045652c57eb5fb41513ca2a2d67722b77e954b4b3fc11f7590449191d")
+  return
+
+def test_vector_22():
+  entropy = 0xf30f8c1da665478f49b001d94c5fc452
+  ENT = 128
+  mnemonic_int=from_entropy_to_mnemonic_int(entropy, ENT)
+  mnemonic = from_mnemonic_int_to_mnemonic(mnemonic_int, 'Dictionary.txt')
+  seed = from_mnemonic_to_seed(mnemonic)
+  assert(seed == "2aaa9242daafcee6aa9d7269f17d4efe271e1b9a529178d7dc139cd18747090bf9d60295d0ce74309a78852a9caadf0af48aae1c6253839624076224374bc63f")
+  return
+
+def test_vector_23():
+  entropy = 0xc10ec20dc3cd9f652c7fac2f1230f7a3c828389a14392f05
+  ENT = 192
+  mnemonic_int=from_entropy_to_mnemonic_int(entropy, ENT)
+  mnemonic = from_mnemonic_int_to_mnemonic(mnemonic_int, 'Dictionary.txt')
+  seed = from_mnemonic_to_seed(mnemonic)
+  assert(seed == "7b4a10be9d98e6cba265566db7f136718e1398c71cb581e1b2f464cac1ceedf4f3e274dc270003c670ad8d02c4558b2f8e39edea2775c9e232c7cb798b069e88")
+  return
+
+def test_vector_24():
+  entropy = 0xf585c11aec520db57dd353c69554b21a89b20fb0650966fa0a9d6f74fd989d8f
+  ENT = 256
+  mnemonic_int=from_entropy_to_mnemonic_int(entropy, ENT)
+  mnemonic = from_mnemonic_int_to_mnemonic(mnemonic_int, 'Dictionary.txt')
+  seed = from_mnemonic_to_seed(mnemonic)
+  assert(seed == "01f5bced59dec48e362f2c45b5de68b9fd6c92c6634f44d6d40aab69056506f0e35524a518034ddc1192e1dacd32c1ed3eaa3c3b131c88ed8e7e54c49a5d0998")
+  return
+
+
+
+def test_vector():
+  test_vector_1()
+  test_vector_2()
+  test_vector_3()
+  test_vector_4()
+  test_vector_5()
+  test_vector_6()
+  test_vector_7()
+  test_vector_8()
+  test_vector_9()
+  test_vector_10()
+  test_vector_11()
+  test_vector_12()
+  test_vector_13()
+  test_vector_14()
+  test_vector_15()
+  test_vector_16()
+  test_vector_17()
+  test_vector_18()
+  test_vector_19()
+  test_vector_20()
+  test_vector_21()
+  test_vector_22()
+  test_vector_23()
+  test_vector_24()
+
+
+test_vector()
