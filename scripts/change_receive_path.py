@@ -7,7 +7,7 @@ Created on Mon Nov 20 12:26:47 2017
 
 from bip39 import from_mnemonic_to_seed
 from bip32_functions import bip32_master_key, bip32_xprvtoxpub, bip32_parse_xkey, bip32_ckd
-from base58 import b58encode_check
+from base58 import b58encode_check, b58decode_check
 import hashlib
 
 def h160(inp):
@@ -27,6 +27,9 @@ def path(xprv, index_child):
     return public_key_to_bc_address(info_xpub['key'], version)
   else:
     return path(xprv, index_child[1:])
+  
+
+### Electrum path derivation
 
 mnemonic = 'army van defense carry jealous true garbage claim echo media make crunch'
 passphrase = ''
@@ -45,3 +48,37 @@ assert path(xprv, index_child) == receive
 
 index_child = [0x80000000, 1, 0]
 assert path(xprv, index_child) == change
+
+### Bitcoin-core path derivation
+
+xprv = 'xprv9s21ZrQH143K2oxHiQ5f7D7WYgXD9h6HAXDBuMoozDGGiYHWsq7TLBj2yvGuHTLSPCaFmUyN1v3fJRiY2A4YuNSrqQMPVLZKt76goL6LP7L'
+receive = 'VUqyLGVdUADWEqDqL2DeUBAcbPQwZfWDDY' # "hdkeypath": "m/0'/0'/5'"
+change = 'VMg6DpX7SQUsoECdpXJ8Bv6R7p11PfwHwy' # "hdkeypath": "m/0'/1'/1'"
+
+index_child = [0x80000000, 0x80000000, 0x80000005]
+assert path(xprv, index_child) == receive
+
+index_child = [0x80000000, 0x80000001, 0x80000001]
+assert path(xprv, index_child) == change
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
