@@ -7,7 +7,7 @@ Created on Mon Nov 20 12:26:47 2017
 
 from bip39 import from_mnemonic_to_seed
 from bip32_functions import bip32_master_key, bip32_xprvtoxpub, bip32_parse_xkey, bip32_ckd
-from base58 import b58encode_check, b58decode_check
+from base58 import b58encode_check
 import hashlib
 
 def h160(inp):
@@ -18,15 +18,14 @@ def public_key_to_bc_address(inp, version=b'\x00'):
   vh160 = version + h160(inp)
   return b58encode_check(vh160)
 
-def path(xprv, index_child):
+def path(xprv, index_child, version=b'\x00'):
   xprv = bip32_ckd(xprv, index_child[0])
   if index_child[1:] == []:
     xpub = bip32_xprvtoxpub(xprv)
     info_xpub = bip32_parse_xkey(xpub)
-    version = 0x46.to_bytes(1, 'big')
     return public_key_to_bc_address(info_xpub['key'], version)
   else:
-    return path(xprv, index_child[1:])
+    return path(xprv, index_child[1:], version)
   
 
 ### Electrum path derivation
@@ -44,10 +43,10 @@ seed_bytes = 64
 xprv = bip32_master_key(seed, seed_bytes)
 
 index_child = [0x80000000, 0, 0]
-assert path(xprv, index_child) == receive
+assert path(xprv, index_child, version) == receive
 
 index_child = [0x80000000, 1, 0]
-assert path(xprv, index_child) == change
+assert path(xprv, index_child, version) == change
 
 ### Bitcoin-core path derivation
 
@@ -56,10 +55,10 @@ receive = 'VUqyLGVdUADWEqDqL2DeUBAcbPQwZfWDDY' # "hdkeypath": "m/0'/0'/5'"
 change = 'VMg6DpX7SQUsoECdpXJ8Bv6R7p11PfwHwy' # "hdkeypath": "m/0'/1'/1'"
 
 index_child = [0x80000000, 0x80000000, 0x80000005]
-assert path(xprv, index_child) == receive
+assert path(xprv, index_child, version) == receive
 
 index_child = [0x80000000, 0x80000001, 0x80000001]
-assert path(xprv, index_child) == change
+assert path(xprv, index_child, version) == change
 
 
 
