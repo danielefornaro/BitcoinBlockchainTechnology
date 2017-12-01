@@ -28,7 +28,7 @@ def path(xprv, index_child, version=b'\x00'):
     return path(xprv, index_child[1:], version)
   
 
-### Electrum path derivation
+### Electrum path derivation (bip39)
 
 mnemonic = 'army van defense carry jealous true garbage claim echo media make crunch'
 passphrase = ''

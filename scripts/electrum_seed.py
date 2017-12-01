@@ -16,7 +16,6 @@ def from_mnemonic_to_seed_eletrcum(mnemonic, passphrase=''):
   PBKDF2_ROUNDS = 2048
   return PBKDF2(mnemonic, 'electrum' + passphrase, iterations = PBKDF2_ROUNDS, macmodule = hmac, digestmodule = sha512).read(64).hex()
 
-
 def bh2u(x):
   return binascii.hexlify(x).decode('ascii')
 
