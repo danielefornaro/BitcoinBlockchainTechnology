@@ -46,7 +46,7 @@ def bech32_encode(hrp, data):
 
 def bech32_decode(bech):
     """Validate a Bech32 string, and determine HRP and data."""
-    if ((any(ord(x) < 33 or ord(x) > 126 for x in bech)) or # the value excluded are bytes character, not unexpected char such as !£$%&
+    if ((any(ord(x) < 33 or ord(x) > 126 for x in bech)) or # the value excluded are strange values, not unexpected char such as !£$%&
             (bech.lower() != bech and bech.upper() != bech)): # all the character must be lower or upper, not half and half
         return (None, None)
     bech = bech.lower()
@@ -108,9 +108,9 @@ def encode(hrp, witver, witprog):
     return ret
 
 
-bech='bc1pw508d6qejxtdg4y5r3zarvary0c5xw7kw508d6qejxtdg4y5r3zarvary0c5xw7k7grplx'
+bechbech='bc!1pw508d6qejxtdg4y5r3zarvary0c5xw7kw508d6qejxtdg4y5r3zarvary0c5xw7k7grplx'
 
 
 bech1 = bech32_encode('bc', [1,2,3,4,5,6,7,8,9])
 
-print(bech32_decode(bech))
+print(bech32_decode(bechbech))
